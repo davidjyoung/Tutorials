@@ -6,30 +6,6 @@ output:
   pdf_document: default
   html_document: default
 ---
-
-```{r, include = FALSE}
-rm(list = ls())
-
-library(magrittr)
-library(dplyr)
-library(reshape2)
-library(ggplot2)
-library(stats)
-
-library(Rmisc)
-library(cowplot)
-library(ggpubr)
-library(tidyr)
-library(purrr)
-
-library(cluster)
-library(factoextra)
-library(NbClust)
-library(FactoMineR)
-library(umap)
-
-```
-
 Clustering is for finding groups in continuous numerical data
 
 To perform clustering, you need to know how many clusters are in the data in advance (for most methods anyway)
@@ -40,24 +16,49 @@ So clustering typically involves three steps:
 - Actually partitioning the data into clusters
 - Then plotting/analysing differences between the clusters
 
-My advice on how to perform clustering here is taken from this paper: https://export.arxiv.org/ftp/arxiv/papers/2003/2003.00381.pdf (Dajmaijer, Nord, and Astle: Statistical power for cluster analysis) and applying their insights to R via trial-and-error
+My advice on how to perform clustering here is taken from this paper: https://export.arxiv.org/ftp/arxiv/papers/2003/2003.00381.pdf (Dajmaijer, Nord, and Astle: Statistical power for cluster analysis) and applying their insights to R via trial-and-error. See that paper for more information and for justifications of the approach taken here!
+
+Let's load in the packages we will need and then go through it in three steps
+```{r, message=FALSE}
+rm(list = ls())
+
+library(magrittr)
+library(dplyr)
+library(reshape2)
+library(ggplot2)
+library(stats)
+library(Rmisc)
+library(cowplot)
+
+library(cluster)
+library(factoextra)
+library(umap)
+
+```
+
 
 
 ## 1. Gather your data, and scale it
 
+Here, we're just going to use the 'mpg' dataset of cars that comes built in with R, and we're only going to use the continuous numerical variables (disp, cyl, cty, and hwy). 
+
+Let's pull those variables out of the dataset, then scale them (i.e. convert them to z-scores), and make sure the data is still in a data-frame format (since scale returns more than just the data-frame you want)
+
+
 ```{r}
 
 data <- mpg %>% select(displ, cyl, cty, hwy) %>%
-  transmute_all(scale) %>% sapply(as.numeric) %>% data.frame
+  transmute_all(scale) %>% 
+  sapply(as.numeric) %>% # this step and the one below are important for
+  data.frame             # getting your data in the right format after scaling
 
-data %>% dim
 ```
-We have 234 cases over 4 dimensions
 
+Converting the dimensions into z-scores is very important because clustering is done by modelling each entry as a point in a multidimensional space, then calculating the distances between points, therefore all the dimensions need to be in the same units - scaling puts all the dimensions into standard deviation units
 
 ## 2. See how many clusters there are using the silhouette test
 
-- **Use the 'fviz_nbclust' function from the package "NbClust"**
+- **Use the 'fviz_nbclust' function from the package "factoextra"**
 - The first argument has to be your data (data)
 - The second argument has to be your clustering methods - the standard is 'kmeans'
 - The third argument has to be what kind of test you want to run - we want to run a "silhouette" test (this function will run others too)
@@ -133,7 +134,7 @@ fviz_nbclust(data.mds, kmeans, method = "silhouette") +
   geom_hline(yintercept = 0.5)  # suggests 2, > 0.5
 ```
 
-Again, it suggests 2 is the optimal number of clusters, and the average silhouette is above 0.5, so we can go with this clustering solutions.
+Again, it suggests 2 is the optimal number of clusters, and the average silhouette is above 0.5, so we can go with this clustering solution.
 
 **So now we know how many clusters there are (2), let's actually partition the data, and visualise it**
 
