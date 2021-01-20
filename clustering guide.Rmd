@@ -6,9 +6,10 @@ output:
   pdf_document: default
   html_document: default
 ---
-Clustering is for finding groups in continuous numerical data
+Clustering is for finding groups in continuous numerical data.
 
-To perform clustering, you need to know how many clusters are in the data in advance (for most methods anyway)
+To perform clustering, you need to know how many clusters are in the data in 
+advance (for most methods anyway).
 
 So clustering typically involves three steps:
 
@@ -16,7 +17,13 @@ So clustering typically involves three steps:
 - Actually partitioning the data into clusters
 - Then plotting/analysing differences between the clusters
 
-My advice on how to perform clustering here is taken from this paper: https://export.arxiv.org/ftp/arxiv/papers/2003/2003.00381.pdf (Dajmaijer, Nord, and Astle: Statistical power for cluster analysis) and applying their insights to R via trial-and-error. See that paper for more information and for justifications of the approach taken here!
+This guide will give you an idea of how do each of these things in R.
+I assume familiarity with magrittr's "pipe" operator (%>%) and basic dplyr functions.
+
+My advice on how to perform clustering here is taken from this paper: https://export.arxiv.org/ftp/arxiv/papers/2003/2003.00381.pdf (Dajmaijer, Nord, 
+and Astle: Statistical power for cluster analysis) and applying their insights 
+to R via trial-and-error. See that paper for more information and for 
+justifications of the approach taken here!
 
 Let's load in the packages we will need and then go through it in three steps
 ```{r, message=FALSE}
@@ -40,9 +47,13 @@ library(umap)
 
 ## 1. Gather your data, and scale it
 
-Here, we're just going to use the 'mpg' dataset of cars that comes built in with R, and we're only going to use the continuous numerical variables (disp, cyl, cty, and hwy). 
+Here, we're just going to use the 'mpg' dataset of cars that comes built in with 
+R, and we're only going to use the continuous numerical variables (disp, cyl, 
+cty, and hwy). 
 
-Let's pull those variables out of the dataset, then scale them (i.e. convert them to z-scores), and make sure the data is still in a data-frame format (since scale returns more than just the data-frame you want)
+Let's pull those variables out of the dataset, then scale them (i.e. convert 
+them to z-scores), and make sure the data is still in a data-frame format 
+(since the scale functions returns more than just the data-frame you want)
 
 
 ```{r}
@@ -54,34 +65,45 @@ data <- mpg %>% select(displ, cyl, cty, hwy) %>%
 
 ```
 
-Converting the dimensions into z-scores is very important because clustering is done by modelling each entry as a point in a multidimensional space, then calculating the distances between points, therefore all the dimensions need to be in the same units - scaling puts all the dimensions into standard deviation units
+Converting the dimensions into z-scores is very important because clustering is 
+done by modelling each entry as a point in a multidimensional space, then 
+calculating the distances between points, therefore all the dimensions need to 
+be in the same units - scaling puts all the dimensions into standard deviation 
+units
 
 ## 2. See how many clusters there are using the silhouette test
 
 - **Use the 'fviz_nbclust' function from the package "factoextra"**
 - The first argument has to be your data (data)
 - The second argument has to be your clustering methods - the standard is 'kmeans'
-- The third argument has to be what kind of test you want to run - we want to run a "silhouette" test (this function will run others too)
+- The third argument has to be what kind of test you want to run - we want to 
+run a "silhouette" test (this function will run others too)
 
-- The average silhouette of the clusters has to be above 0.5 to meet the threshold for true statistical clustering, so add in a command from ggplot to include a horizontal line at 0.5 so you can see if the threshold is reached
+- The average silhouette of the clusters has to be above 0.5 to meet the 
+threshold for true statistical clustering, so add in a command from ggplot to 
+include a horizontal line at 0.5 so you can see if the threshold is reached
 ```{r}
 fviz_nbclust(data, kmeans, method = "silhouette") +
   geom_hline(yintercept = 0.5) 
 ```
 
-The optimum number of clusters is the one that gives us our 'first maximum' - this is 2, and the function helpfully includes a vertical line to show this
+The optimum number of clusters is the one that gives us our 'first maximum' - 
+this is 2, and the function helpfully includes a vertical line to show this
 
 This suggests there are two clusters - and the average silhouette exceeds 0.5
 
-So in this case, the clusters are adequately separated as they are, and we don't *have* to do any further scaling
+So in this case, the clusters are adequately separated as they are, and we don't 
+*have* to do any further scaling
 
-We can partition the data into clusters using the 'kmeans' function from the package "cluster", specifying the number of clusters as 2:
+We can partition the data into clusters using the 'kmeans' function from the 
+package "cluster", specifying the number of clusters as 2:
 
 ```{r}
 data.km <- kmeans(data, 2)
 ```
 
-Then you can extract the cluster information from data.km and add it into your data, and plot the differences between clusters:
+Then you can extract the cluster information from data.km and add it into your 
+data, and plot the differences between clusters:
 
 ```{r}
 data.clustered <- data %>% mutate(cluster = factor(data.km$cluster))
@@ -105,9 +127,12 @@ noscaling
 
 ```
 
-Often however, multidimensional data will not lead to an adequate clustering solution straight away due to the curse of dimensionality (matrices become very sparse at high dimensions, which the clustering algorithms can't cope with).
+Often however, multidimensional data will not lead to an adequate clustering 
+solution straight away due to the curse of dimensionality (matrices become very 
+sparse at high dimensions, which the clustering algorithms can't cope with).
 
-We can avoid this problem by scaling the data down into fewer dimensions - usually just 2
+We can avoid this problem by scaling the data down into fewer dimensions - 
+usually just 2
 
 And scaling the data into 2 dimensions will help with plotting it too 
 
@@ -115,15 +140,21 @@ So here's how you do it...
 
 ## 3. Scale your multi-dimensional data into 2 dimensions
 
-There are two recommended ways to do this: multidimensional scaling (MDS) and uniform manifold approximation and projection (UMAP). I include examples for both, but MDS is preferred. 
+There are two recommended ways to do this: multidimensional scaling (MDS) and 
+uniform manifold approximation and projection (UMAP). I include examples for 
+both, but MDS is preferred. 
 
-It is not recommended to use principal components as these don't preserve the structure of the multi-dimensional data.
+It is not recommended to use principal components as these don't preserve the 
+structure of the multi-dimensional data.
 
 ### MDS
-**Use the function 'cmdscale' from the package "stats", (which is usually automatically loaded into Rstudio)**
+**Use the function 'cmdscale' from the package "stats", (which is usually 
+automatically loaded into Rstudio)**
 
-- You can't perform this function on the data directly, rather it has to be applied to a distance matrix of the data
-- you can create the distance matrix using the function 'dist' from the package "stats"
+- You can't perform this function on the data directly, rather it has to be 
+applied to a distance matrix of the data
+- you can create the distance matrix using the function 'dist' from the package 
+"stats"
 
 - then just run the silhouette tests on the mds-data again
 
@@ -134,9 +165,11 @@ fviz_nbclust(data.mds, kmeans, method = "silhouette") +
   geom_hline(yintercept = 0.5)  # suggests 2, > 0.5
 ```
 
-Again, it suggests 2 is the optimal number of clusters, and the average silhouette is above 0.5, so we can go with this clustering solution.
+Again, it suggests 2 is the optimal number of clusters, and the average silhouette 
+is above 0.5, so we can go with this clustering solution.
 
-**So now we know how many clusters there are (2), let's actually partition the data, and visualise it**
+**So now we know how many clusters there are (2), let's actually partition the 
+data, and visualise it**
 
 ```{r}
 data.mds.km <- kmeans(data.mds, 2)
@@ -160,7 +193,8 @@ mds <- data.mds.clustered %>% melt(id.vars = "cluster") %>%
 mds
 ```
 
-We can also plot the clusters in terms of their positions along the 2 dimensions that multi-dimensional scaling produces:
+We can also plot the clusters in terms of their positions along the 2 dimensions 
+that multi-dimensional scaling produces:
 
 ```{r}
 
@@ -172,13 +206,15 @@ data.mds %>% data.frame %>%
 
 ### UMAP
 
-Since MDS worked (we got an average silhouette > 0.5), we don't really need to do UMAP for this example, but here is how it works...
+Since MDS worked (we got an average silhouette > 0.5), we don't really need to 
+do UMAP for this example, but here is how it works...
 
 **Use the function 'umap' from the package "umap"**
 
 This function can be performed directly on the data.
 
-Its output is a list, and you only need the 'layout' part of that list to extract the umap-scaled data
+Its output is a list, and you only need the 'layout' part of that list to extract 
+the umap-scaled data
 
 Then you can run the silhouette tests again...
 
@@ -215,7 +251,8 @@ umap <- data.umap.clustered %>% melt(id.vars = "cluster") %>%
 umap
 ```
 
-And now let's look at the cluster positions in terms of the 2 dimensions created by umap-scaling:
+And now let's look at the cluster positions in terms of the 2 dimensions created 
+by umap-scaling:
 
 ```{r}
 
